@@ -321,6 +321,13 @@ class EPSDEwDCData(BaseData):
 
 
 @dataclass
+class FDDEData(BaseData):
+    mutation_factor: float = 0.5
+    crossover_rate: float = 0.5
+    crossing_type: CrossingType = CrossingType.BINOMIAL
+
+
+@dataclass
 class SHADE4Data(BaseData):
     memory_size: int = 5
     smoothing_constant: int = 2  # Smoothing factor, must be > 1 (higher = stronger smoothing)

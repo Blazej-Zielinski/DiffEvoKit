@@ -3,21 +3,26 @@ import copy
 
 import numpy as np
 
-from detpy.models.member import Member
+from detpy.models.enums.optimization import OptimizationType
 from detpy.models.population import Population
 
 
 def calculate_fitness_ranking(population: Population) -> np.ndarray:
     """
     FR_i = i, i = 1, 2, ..., NP
-    Sort individuals by fitness in ascending order; their index after sort is FR.
+    Sort individuals by fitness (best first); rank 1 = best.
+    For minimization: ascending order. For maximization: descending order.
     """
     fitness_values = np.array([m.fitness_value for m in population.members])
-    sorted_indices = np.argsort(fitness_values)
+
+    if population.optimization == OptimizationType.MINIMIZATION:
+        sorted_indices = np.argsort(fitness_values)
+    else:
+        sorted_indices = np.argsort(-fitness_values)
 
     fr = np.empty(population.size, dtype=float)
     for rank, idx in enumerate(sorted_indices):
-        fr[idx] = rank + 1  # 1-based ranking
+        fr[idx] = rank + 1
 
     return fr
 

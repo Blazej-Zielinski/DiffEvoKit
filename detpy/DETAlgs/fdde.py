@@ -8,6 +8,7 @@ from detpy.DETAlgs.methods.methods_fdde import (
 )
 from detpy.DETAlgs.methods.methods_de import crossing, selection
 from detpy.models.enums.boundary_constrain import fix_boundary_constraints
+from detpy.models.enums.ranking_type import RankingType
 
 
 class FDDE(BaseAlg):
@@ -18,8 +19,8 @@ class FDDE(BaseAlg):
         https://www.sciencedirect.com/science/article/abs/pii/S2210650220304697
 
         References:
-        L. Tang, Y. Dong, J. Liu,
-        Differential evolution with an individual-dependent mechanism,
+        J. Cheng, Z. Pan, H. Liang, Z. Gao, J. Gao,
+        Differential evolution algorithm with fitness and diversity ranking-based mutation operator,
         Swarm and Evolutionary Computation, Volume 61, 2021, 100816
     """
 
@@ -29,14 +30,19 @@ class FDDE(BaseAlg):
         self.mutation_factor = params.mutation_factor
         self.crossover_rate = params.crossover_rate
         self.crossing_type = params.crossing_type
-        self.max_gen = params.max_nfe // params.population_size
+        self.ranking_type = params.ranking_type
 
     def next_epoch(self):
-        w = min(self._epoch_number / self.max_gen, 1.0)
-
         fr = calculate_fitness_ranking(self._pop)
         dr = calculate_diversity_ranking(self._pop)
-        final_rankings = calculate_final_ranking(fr, dr, w)
+
+        if self.ranking_type == RankingType.FITNESS_ONLY:
+            final_rankings = fr
+        elif self.ranking_type == RankingType.DIVERSITY_ONLY:
+            final_rankings = dr
+        else:
+            w = 0.2 + 0.6 * min(self.nfe / self.nfe_max, 1.0)
+            final_rankings = calculate_final_ranking(fr, dr, w)
 
         v_pop = fdde_mutation(self._pop, final_rankings, self.mutation_factor)
 

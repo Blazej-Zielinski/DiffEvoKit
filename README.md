@@ -169,9 +169,9 @@ Test functions prepared based on https://gitlab.com/luca.baronti/python_benchmar
 26. Tetsuyuki Takahama and Setsuko Sakai, *Efficient Constrained Optimization by the ε Constrained Adaptive Differential Evolution*. IEEE Congress on Evolutionary Computation, 2010
 27. Tetsuyuki Takahama and Setsuko Sakai, *Efficient Constrained Optimization by the ε Constrained Rank-Based Differential Evolution*. IEEE Congress on Evolutionary Computation, 2012
 28. Tetsuyuki Takahama and Setsuko Sakai, *Epsilon Constrained Differential Evolution with Dynamic ε-Level Control*. Chakraborty, U.K. (eds) Advances in Differential Evolution. Studies in Computational Intelligence, vol 143. Springer, Berlin, Heidelberg, 2008
-29. Petr Bujok, Josef Tvrdík, Radka Poláková *Evaluating the performance of SHADE with competing strategies on CEC 2014 single-parameter test suite* IEEE Congress on Evolutionary Computation, 2016
-30. Petr Bujok, Josef Tvrdík, Radka Poláková *L-SHADE with Competing Strategies Applied to CEC2015 Learning-based Test Suite* IEEE Congress on Evolutionary Computation, 2016
-31. Tang, L., Dong, Y., Liu, J. *Differential evolution with an individual-dependent mechanism*. Swarm and Evolutionary Computation, vol. 61, 100816, 2021.
+29. Petr Bujok, Josef Tvrdík, Radka Poláková *Evaluating the performance of SHADE with competing strategies on CEC 2014 single-parameter test suite* IEEE Congress on Evolutionary Computation, 2016 
+30. Petr Bujok, Josef Tvrdík, Radka Poláková *L-SHADE with Competing Strategies Applied to CEC2015 Learning-based Test Suite* IEEE Congress on Evolutionary Computation, 2016 
+31. Cheng, J., Pan, Z., Liang, H., Gao, Z., Gao, J. *Differential evolution algorithm with fitness and diversity ranking-based mutation operator*. Swarm and Evolutionary Computation, vol. 61, 100816, 2021.
 # Documentation
 Full documentation is available: https://blazej-zielinski.github.io/detpy/
 

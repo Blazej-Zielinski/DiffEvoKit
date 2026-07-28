@@ -33,14 +33,13 @@ class FDDE(BaseAlg):
         self.ranking_type = params.ranking_type
 
     def next_epoch(self):
-        fr = calculate_fitness_ranking(self._pop)
-        dr = calculate_diversity_ranking(self._pop)
-
         if self.ranking_type == RankingType.FITNESS_ONLY:
-            final_rankings = fr
+            final_rankings = calculate_fitness_ranking(self._pop)
         elif self.ranking_type == RankingType.DIVERSITY_ONLY:
-            final_rankings = dr
+            final_rankings = calculate_diversity_ranking(self._pop)
         else:
+            fr = calculate_fitness_ranking(self._pop)
+            dr = calculate_diversity_ranking(self._pop)
             w = 0.2 + 0.6 * min(self.nfe / self.nfe_max, 1.0)
             final_rankings = calculate_final_ranking(fr, dr, w)
 

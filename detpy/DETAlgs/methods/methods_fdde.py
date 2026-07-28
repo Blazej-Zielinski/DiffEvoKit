@@ -16,14 +16,12 @@ def calculate_fitness_ranking(population: Population) -> np.ndarray:
     fitness_values = np.array([m.fitness_value for m in population.members])
 
     if population.optimization == OptimizationType.MINIMIZATION:
-        sorted_indices = np.argsort(fitness_values)
+        order = np.argsort(fitness_values)
     else:
-        sorted_indices = np.argsort(-fitness_values)
+        order = np.argsort(-fitness_values)
 
     fr = np.empty(population.size, dtype=float)
-    for rank, idx in enumerate(sorted_indices):
-        fr[idx] = rank + 1
-
+    fr[order] = np.arange(1, population.size + 1, dtype=float)
     return fr
 
 
@@ -35,15 +33,11 @@ def calculate_diversity_ranking(population: Population) -> np.ndarray:
     """
     fitness_values = np.array([m.fitness_value for m in population.members])
     f_mid = np.median(fitness_values)
-
     f_de = np.abs(fitness_values - f_mid)
 
-    sorted_indices = np.argsort(f_de)
-
+    order = np.argsort(f_de)
     dr = np.empty(population.size, dtype=float)
-    for rank, idx in enumerate(sorted_indices):
-        dr[idx] = population.size - (rank + 1)  # NP - i (1-based)
-
+    dr[order] = np.arange(population.size - 1, -1, -1, dtype=float)
     return dr
 
 

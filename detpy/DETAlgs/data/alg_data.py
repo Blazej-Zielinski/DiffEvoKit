@@ -6,6 +6,7 @@ from detpy.DETAlgs.population_reduction.population_size_reduction_strategy impor
 from detpy.models.enums.basevectorschema import BaseVectorSchema
 from detpy.models.enums.crossingtype import CrossingType
 from detpy.models.enums.derivative_method import DerivativeMethod
+from detpy.models.enums.ranking_type import RankingType
 from detpy.models.fitness_function import FitnessFunctionBase
 from detpy.models.enums.boundary_constrain import BoundaryFixing
 from detpy.models.enums.optimization import OptimizationType
@@ -318,6 +319,14 @@ class EPSDEwDCData(BaseData):
     control_generations: int = 150
     g_funcs: list[Callable[[list[float]], float]] = field(default_factory=list)
     h_funcs: list[Callable[[list[float]], float]] = field(default_factory=list)
+
+
+@dataclass
+class FDDEData(BaseData):
+    mutation_factor: float = 0.5
+    crossover_rate: float = 0.9
+    crossing_type: CrossingType = CrossingType.BINOMIAL
+    ranking_type: RankingType = RankingType.FULL
 
 
 @dataclass

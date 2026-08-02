@@ -12,6 +12,7 @@ from detpy.DETAlgs.mutation_methods.current_to_pbest_1 import MutationCurrentToP
 from detpy.DETAlgs.random.index_generator import IndexGenerator
 from detpy.DETAlgs.random.random_value_generator import RandomValueGenerator
 from detpy.models.enums.boundary_constrain import fix_boundary_constraints_with_parent
+from detpy.models.enums.ilshade_p_update import ILShadePUpdateStrategy
 from detpy.models.enums.optimization import OptimizationType
 
 from detpy.models.population import Population
@@ -19,61 +20,87 @@ from detpy.models.population import Population
 
 class ILSHADE(BaseAlg):
     """
-        ILSHADE: copy of LSHADE (to be modified)
-
-        Based on:
-        LSHADE: Improving the Search Performance of SHADE Using Linear Population Size Reduction
+        iL-SHADE: Improved L-SHADE Algorithm for Single Objective Real-Parameter Optimization
 
         Links:
-        https://ieeexplore.ieee.org/document/6900380
+        https://ieeexplore.ieee.org/document/7743922
 
         References:
-        Tanabe, R., & Fukunaga, A. S. (2014). Improving the search performance of SHADE using linear population size
-        reduction. In 2014 IEEE Congress on Evolutionary Computation (CEC) (pp. 1658–1665). 2014 IEEE Congress on
-        Evolutionary Computation (CEC). IEEE. https://doi.org/10.1109/cec.2014.6900380
+        Brest, J., Sepesy Maučec, M., & Boškovič, B. (2016). iL-SHADE: Improved L-SHADE algorithm for single objective
+        real-parameter optimization. In 2016 IEEE Congress on Evolutionary Computation (CEC) (pp. 1188–1195). IEEE.
     """
+
+    _FIXED_MEMORY_F = 0.9
+    _FIXED_MEMORY_CR = 0.9
+    _INITIAL_MEMORY_F = 0.5
+    _INITIAL_MEMORY_CR = 0.8
+    _TERMINAL = -1.0  # Terminal value for M_CR (Algorithm 4); reset to 0.0 in update_memory
 
     def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
         super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)
 
-        self._H = params.memory_size  # Memory size for f and cr adaptation
-        self._memory_F = np.full(self._H, 0.5)  # Initial memory for F
-        self._memory_Cr = np.full(self._H, 0.5)  # Initial memory for Cr
-        self._p = params.best_member_percentage
+        self._H = params.memory_size  # Memory size for F and Cr adaptation
+        self._memory_F = np.full(self._H, self._INITIAL_MEMORY_F)  # Initial memory for F
+        self._memory_Cr = np.full(self._H, self._INITIAL_MEMORY_CR)  # Initial memory for Cr (0.8 in iL-SHADE)
+        self._fixed_memory_index = self._H - 1  # Last memory slot with fixed F/Cr values
+        self._memory_F[self._fixed_memory_index] = self._FIXED_MEMORY_F
+        self._memory_Cr[self._fixed_memory_index] = self._FIXED_MEMORY_CR
+
+        self._p_max = params.p_max
+        self._p_min = params.p_min
+        self._p_update_strategy = params.p_update_strategy
+        self._p = self._p_max  # Current p-best fraction for current-to-pBest/1
         self._k_index = 0
 
         self._successCr = []
         self._successF = []
         self._difference_fitness_success = []
 
-        self._min_the_best_percentage = 2 / self.population_size  # Minimal percentage of the best members to consider
-
         self._archive_size = self.population_size  # Size of the archive
-        self._archive = []  # Archive for storing the members from old populations
+        self._archive = []  # Archive for storing replaced members
 
         self._min_pop_size = params.minimum_population_size  # Minimal population size
-
         self._start_population_size = self.population_size
-
+        self._g_max = max(1, int(np.ceil(self.nfe_max / self._start_population_size)))  # Estimated max generations
         self._population_size_reduction_strategy = params.population_reduction_strategy
 
-        # Define a terminal value for memory_Cr. It indicates that no successful Cr was found in the epoch.
-        self._TERMINAL = np.nan
-
-        # We need this value for checking close to zero in update_memory
-        self._EPSILON = 0.00001
+        self._EPSILON = 0.00001  # Tolerance for checking close to zero in update_memory
 
         self._index_gen = IndexGenerator()
         self._random_value_gen = RandomValueGenerator()
         self._binomial_crossing = BinomialCrossover()
         self._archive_reduction = ArchiveReduction()
 
+    def _update_p(self):
+        """
+        Update the p-best fraction for current-to-pBest/1 mutation (iL-SHADE Algorithm 3, Eq. 1).
+
+        The update strategy is controlled by ``ILShadeData.p_update_strategy``:
+        - DECREASING: linear decrease from p_max to p_min (paper Section IV).
+        - INCREASING: linear increase from p_min to p_max (paper Equation 1).
+        """
+        if self._p_update_strategy == ILShadePUpdateStrategy.DECREASING:
+            self._p = self._p_max - ((self._p_max - self._p_min) / self.nfe_max) * self.nfe
+        else:
+            self._p = ((self._p_max - self._p_min) / self.nfe_max) * self.nfe + self._p_min
+
+    def _progress_fraction(self) -> float:
+        """
+        Return the current generation progress as g / G_max.
+
+        Used for early-stage F and CR constraints (Algorithm 3, lines 19-31).
+
+        Returns:
+        - float: Fraction of estimated maximum generations completed.
+        """
+        return self._epoch_number / self._g_max
+
     def update_population_size(self, nfe: int, total_nfe: int, start_pop_size: int, min_pop_size: int):
         """
         Calculate new population size using Linear Population Size Reduction (LPSR).
 
         Parameters:
-        - nfe (int): The current function evaluations.
+        - nfe (int): The current number of function evaluations.
         - total_nfe (int): The total number of function evaluations.
         - start_pop_size (int): The initial population size.
         - min_pop_size (int): The minimum population size.
@@ -89,33 +116,27 @@ class ILSHADE(BaseAlg):
                f_table: List[float]
                ) -> Population:
         """
-        Perform mutation step for the population in SHADE.
+        Perform mutation step for the population using current-to-pBest/1.
 
         Parameters:
         - population (Population): The population to mutate.
-        - the_best_to_select_table (List[int]): List of the number of the best members to select.
+        - the_best_to_select_table (List[int]): Number of top members to consider as p-best for each individual.
         - f_table (List[float]): List of scaling factors for mutation.
 
-        Returns: A new Population with mutated members.
+        Returns:
+        - Population: A new population with mutated members.
         """
         new_members = []
-
         sum_archive_and_population = np.concatenate((population.members, self._archive))
 
         for i in range(population.size):
             r1 = self._index_gen.generate_unique(len(population.members), [i])
-
-            # Archive is included population and archive members
             r2 = self._index_gen.generate_unique(len(sum_archive_and_population), [i, r1])
 
-            # Select top p-best members from the population
             best_members = population.get_best_members(the_best_to_select_table[i])
-
-            # Randomly select one of the p-best members
             random_index = self._index_gen.generate(0, len(best_members))
             selected_best_member = best_members[random_index]
 
-            # Apply the mutation formula (current-to-pbest strategy)
             mutated_member = MutationCurrentToPBest1.mutate(
                 base_member=population.members[i],
                 best_member=selected_best_member,
@@ -126,23 +147,21 @@ class ILSHADE(BaseAlg):
 
             new_members.append(mutated_member)
 
-        # Create a new population with the mutated members
-        new_population = Population.with_new_members(population, new_members)
-        return new_population
+        return Population.with_new_members(population, new_members)
 
     def _selection(self, origin_population, modified_population, ftable, cr_table):
         """
-        Perform the selection step for the SHADE algorithm.
+        Perform the selection step for the iL-SHADE algorithm.
 
-        This method selects the members for the next generation based on their fitness values.
-        If the modified member is better than the original member, it is selected; otherwise, the original member is retained.
-        Additionally, information about successful trials is stored for updating memory parameters.
+        Selects members for the next generation based on fitness values.
+        If the trial vector is better than the target vector, it replaces the target
+        and the replaced vector is stored in the archive together with successful F and Cr values.
 
         Parameters:
-        - origin_population (Population): The original population before the selection step.
-        - modified_population (Population): The modified population after mutation and crossover.
-        - ftable (List[float]): List of scaling factors used during mutation.
-        - cr_table (List[float]): List of crossover rates used during crossover.
+        - origin_population (Population): The original population before selection.
+        - modified_population (Population): The trial population after mutation and crossover.
+        - ftable (List[float]): Scaling factors used during mutation.
+        - cr_table (List[float]): Crossover rates used during crossover.
 
         Returns:
         - Population: A new population containing the selected members for the next generation.
@@ -150,133 +169,177 @@ class ILSHADE(BaseAlg):
         optimization = origin_population.optimization
         new_members = []
 
-        # Define comparison and difference functions based on optimization type
         if optimization == OptimizationType.MINIMIZATION:
             is_better = lambda orig, mod: mod.fitness_value < orig.fitness_value
             diff = lambda orig, mod: orig.fitness_value - mod.fitness_value
-        else:  # MAXIMIZATION
+        else:
             is_better = lambda orig, mod: mod.fitness_value > orig.fitness_value
             diff = lambda orig, mod: mod.fitness_value - orig.fitness_value
 
-        # Iterate through the population and perform selection
         for i in range(origin_population.size):
             orig = origin_population.members[i]
             mod = modified_population.members[i]
 
             if not is_better(orig, mod):
-                # Retain the original member if it is better or equal
                 new_members.append(copy.deepcopy(orig))
                 continue
 
-            # If the modified member is better, update the archive and success metrics
             self._archive.append(copy.deepcopy(orig))
             self._successF.append(ftable[i])
             self._successCr.append(cr_table[i])
             self._difference_fitness_success.append(diff(orig, mod))
             new_members.append(copy.deepcopy(mod))
 
-        # Return a new population with the selected members
         return Population.with_new_members(origin_population, new_members)
 
     def update_memory(self, success_f: List[float], success_cr: List[float], difference_fitness_success: List[float]):
         """
-        Update the memory for the crossover rates and scaling factors based on the success of the trial vectors.
+        Update historical memory for F and Cr based on successful trial vectors (Algorithm 4).
+
+        iL-SHADE uses the average of the weighted Lehmer mean and the previous memory value.
+        Terminal Cr values are reset to 0.0 instead of being kept as a special marker.
+        The fixed memory slot at index H is never updated.
 
         Parameters:
-        - success_f (List[float]): List of scaling factors that led to better trial vectors.
-        - success_cr (List[float]): List of crossover rates that led to better trial vectors.
-        - difference_fitness_success (List[float]): List of differences in objective function values (|f(u_k, G) - f(x_k, G)|).
+        - success_f (List[float]): Scaling factors that led to better trial vectors.
+        - success_cr (List[float]): Crossover rates that led to better trial vectors.
+        - difference_fitness_success (List[float]): Absolute fitness improvements of successful trials.
         """
-        if len(success_f) > 0 and len(success_cr) > 0:
-            total = np.sum(difference_fitness_success)
-            weights = difference_fitness_success / total
+        if len(success_f) == 0 or len(success_cr) == 0:
+            return
 
-            if np.isclose(total, 0.0, atol=self._EPSILON):
-                self._memory_Cr[self._k_index] = self._TERMINAL
-
-            else:
-                cr_new = MathFunctions.calculate_lehmer_mean(np.array(success_cr), weights, p=2)
-                cr_new = np.clip(cr_new, 0, 1)
-                self._memory_Cr[self._k_index] = cr_new
-
-            f_new = MathFunctions.calculate_lehmer_mean(np.array(success_f), weights, p=2)
-            f_new = np.clip(f_new, 0, 1)
-            self._memory_F[self._k_index] = f_new
-
-            # Reset the lists for the next generation
+        if self._k_index == self._fixed_memory_index:
             self._successF = []
             self._successCr = []
             self._difference_fitness_success = []
             self._k_index = (self._k_index + 1) % self._H
+            return
+
+        total = np.sum(difference_fitness_success)
+        weights = difference_fitness_success / total
+        old_cr = self._memory_Cr[self._k_index]
+        old_f = self._memory_F[self._k_index]
+
+        if old_cr < 0 or np.max(success_cr) == 0 or np.isclose(total, 0.0, atol=self._EPSILON):
+            self._memory_Cr[self._k_index] = 0.0
+        else:
+            cr_new = MathFunctions.calculate_lehmer_mean(np.array(success_cr), weights, p=2)
+            cr_new = np.clip((cr_new + old_cr) / 2, 0, 1)
+            self._memory_Cr[self._k_index] = cr_new
+
+        f_new = MathFunctions.calculate_lehmer_mean(np.array(success_f), weights, p=2)
+        f_new = np.clip((f_new + old_f) / 2, 0, 1)
+        self._memory_F[self._k_index] = f_new
+
+        self._successF = []
+        self._successCr = []
+        self._difference_fitness_success = []
+        self._k_index = (self._k_index + 1) % self._H
+
+    def _get_memory_values(self, ri: int) -> tuple[float, float]:
+        """
+        Return the F and Cr memory values for a selected memory index.
+
+        When the fixed memory slot H is selected, returns constant values 0.9/0.9
+        regardless of stored memory contents (Algorithm 3, lines 10-13).
+
+        Parameters:
+        - ri (int): Selected memory index in range [0, H-1].
+
+        Returns:
+        - tuple[float, float]: Mean F and mean Cr for parameter generation.
+        """
+        if ri == self._fixed_memory_index:
+            return self._FIXED_MEMORY_F, self._FIXED_MEMORY_CR
+        return self._memory_F[ri], self._memory_Cr[ri]
+
+    def _apply_early_stage_constraints(self, f: float, cr: float) -> tuple[float, float]:
+        """
+        Apply early-stage constraints to generated F and Cr values (Algorithm 3, lines 19-31).
+
+        Limits high F and low Cr during the first 75% of estimated generations.
+
+        Parameters:
+        - f (float): Generated scaling factor.
+        - cr (float): Generated crossover rate.
+
+        Returns:
+        - tuple[float, float]: Constrained F and Cr values.
+        """
+        progress = self._progress_fraction()
+
+        if progress < 0.25:
+            cr = max(cr, 0.5)
+            f = min(f, 0.7)
+        elif progress < 0.5:
+            cr = max(cr, 0.25)
+            f = min(f, 0.8)
+        elif progress < 0.75:
+            f = min(f, 0.9)
+
+        return f, cr
 
     def initialize_parameters_for_epoch(self):
         """
-        Initialize the parameters for the next epoch of the SHADE algorithm.
-        f_table: List of scaling factors for mutation.
-        cr_table: List of crossover rates.
-        the_bests_to_select: List of the number of the best members to select because in crossover we need to select
-        the best members from the population for one factor.
+        Initialize F, Cr, and p-best parameters for the next epoch (Algorithm 3, lines 8-31).
+
+        For each individual, a random memory index is selected and used to generate
+        new F and Cr values. Early-stage constraints are applied afterwards.
 
         Returns:
-        - f_table (List[float]): List of scaling factors for mutation.
-        - cr_table (List[float]): List of crossover rates.
-        - the_bests_to_select (List[int]): List of the number of the best members to possibly select.
+        - f_table (List[float]): Scaling factors for mutation.
+        - cr_table (List[float]): Crossover rates.
+        - the_bests_to_select (List[int]): Number of p-best members to select for each individual.
         """
         f_table = []
         cr_table = []
         the_bests_to_select = []
 
-        for i in range(self._pop.size):
+        for _ in range(self._pop.size):
             ri = np.random.randint(0, self._H)
+            mean_f, mean_cr = self._get_memory_values(ri)
 
-            # We check here if we have TERMINAL value in memory_Cr
-            if np.isnan(self._memory_Cr[ri]):
+            if mean_cr < 0:
                 cr = 0.0
             else:
-                cr = self._random_value_gen.generate_normal(self._memory_Cr[ri], 0.1, 0.0, 1.0)
-
-            mean_f = self._memory_F[ri]
+                cr = self._random_value_gen.generate_normal(mean_cr, 0.1, 0.0, 1.0)
 
             f = self._random_value_gen.generate_cauchy_greater_than_zero(mean_f, 0.1, 0.0, 1.0)
+            f, cr = self._apply_early_stage_constraints(f, cr)
 
             f_table.append(f)
             cr_table.append(cr)
 
-            the_best_to_possible_select = int(self.population_size * self._p)
-
-            the_bests_to_select.append(the_best_to_possible_select)
+            the_bests_to_select.append(int(self.population_size * self._p))
 
         return f_table, cr_table, the_bests_to_select
 
     def next_epoch(self):
         """
-        Perform the next epoch of the SHADE algorithm.
+        Perform the next epoch of the iL-SHADE algorithm (Algorithm 3).
+
+        Executes parameter initialization, mutation, crossover, selection, archive reduction,
+        memory update, population size reduction, and dynamic p update.
         """
+        self._successF = []
+        self._successCr = []
+        self._difference_fitness_success = []
+
         f_table, cr_table, the_bests_to_select = self.initialize_parameters_for_epoch()
 
         mutant = self.mutate(self._pop, the_bests_to_select, f_table)
-
-        # Crossover step
         trial = self._binomial_crossing.crossover_population(self._pop, mutant, cr_table)
 
         fix_boundary_constraints_with_parent(self._pop, trial, self.boundary_constraints_fun)
-
-        # Evaluate fitness values for the trial population
         trial.update_fitness_values(self._function.eval, self.parallel_processing)
 
-        # Selection step
         new_pop = self._selection(self._pop, trial, f_table, cr_table)
 
-        # Archive management
         self._archive_size = self.population_size
-
         self._archive = self._archive_reduction.reduce_archive(self._archive, self._archive_size, self.population_size)
 
-        # Update the population
         self._pop = new_pop
-
-        # Update the memory for CR and F
         self.update_memory(self._successF, self._successCr, self._difference_fitness_success)
 
-        self.update_population_size(self.nfe, self.nfe_max, self._start_population_size,
-                                    self._min_pop_size)
+        self.update_population_size(self.nfe, self.nfe_max, self._start_population_size, self._min_pop_size)
+        self._update_p()

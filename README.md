@@ -62,6 +62,7 @@ The following variants have been implemented:
 | 31  | SHADE4 Evaluating the Performance of SHADE with Competing Strategies on CEC 2014 Single-Parameter Test Suit [29]                | 2016 |
 | 32  | LSHADE44 L-SHADE with Competing Strategies Applied to CEC2015 Learning-based Test Suite [30]                                    | 2016 |
 | 33  | FDDE (Fitness-Diversity Differential Evolution) [31]                                                                            | 2021 |
+| 34  | iL-SHADE (Improved L-SHADE Algorithm for Single Objective Real-Parameter Optimization) [32]                                     | 2016 |
 
 # Installation
 ```
@@ -172,6 +173,7 @@ Test functions prepared based on https://gitlab.com/luca.baronti/python_benchmar
 29. Petr Bujok, Josef Tvrdík, Radka Poláková *Evaluating the performance of SHADE with competing strategies on CEC 2014 single-parameter test suite* IEEE Congress on Evolutionary Computation, 2016 
 30. Petr Bujok, Josef Tvrdík, Radka Poláková *L-SHADE with Competing Strategies Applied to CEC2015 Learning-based Test Suite* IEEE Congress on Evolutionary Computation, 2016 
 31. Cheng, J., Pan, Z., Liang, H., Gao, Z., Gao, J. *Differential evolution algorithm with fitness and diversity ranking-based mutation operator*. Swarm and Evolutionary Computation, vol. 61, 100816, 2021.
+32. Janez Brest, Mirjam Sepesy Maučec, Borko Boškovič. *iL-SHADE: Improved L-SHADE algorithm for single objective real-parameter optimization*. IEEE Congress on Evolutionary Computation (CEC), 2016. https://doi.org/10.1109/CEC.2016.7743922
 # Documentation
 Full documentation is available: https://blazej-zielinski.github.io/detpy/
 

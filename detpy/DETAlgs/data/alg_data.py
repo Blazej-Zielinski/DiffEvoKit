@@ -3,6 +3,7 @@ from typing import Optional, Callable
 
 from detpy.DETAlgs.population_reduction.linear_population_size_reduction import LinearPopulationSizeReduction
 from detpy.DETAlgs.population_reduction.population_size_reduction_strategy import PopulationSizeReductionStrategy
+from detpy.models.enums.ilshade_p_update import ILShadePUpdateStrategy
 from detpy.models.enums.basevectorschema import BaseVectorSchema
 from detpy.models.enums.crossingtype import CrossingType
 from detpy.models.enums.derivative_method import DerivativeMethod
@@ -187,8 +188,10 @@ class LShadeData(BaseData):
 class ILShadeData(BaseData):
     population_reduction_strategy: PopulationSizeReductionStrategy = LinearPopulationSizeReduction()
     minimum_population_size: int = 5
-    memory_size: int = 5
-    best_member_percentage: float = 0.2
+    memory_size: int = 6
+    p_max: float = 0.2
+    p_min: float = 0.1
+    p_update_strategy: ILShadePUpdateStrategy = ILShadePUpdateStrategy.DECREASING
 
 
 @dataclass

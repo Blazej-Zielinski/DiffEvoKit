@@ -184,6 +184,14 @@ class LShadeData(BaseData):
 
 
 @dataclass
+class ILShadeData(BaseData):
+    population_reduction_strategy: PopulationSizeReductionStrategy = LinearPopulationSizeReduction()
+    minimum_population_size: int = 5
+    memory_size: int = 5
+    best_member_percentage: float = 0.2
+
+
+@dataclass
 class SPSLShadeEIGDATA(BaseData):
     minimum_population_size: int = 5
     population_reduction_strategy: PopulationSizeReductionStrategy = LinearPopulationSizeReduction()

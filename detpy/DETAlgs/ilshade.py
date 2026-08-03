@@ -73,7 +73,7 @@ class ILSHADE(BaseAlg):
 
     def _update_p(self):
         """
-        Update the p-best fraction for current-to-pBest/1 mutation (iL-SHADE Algorithm 3, Eq. 1).
+        Update the p-best fraction for current-to-pBest/1 mutation.
 
         The update strategy is controlled by ``ILShadeData.p_update_strategy``:
         - DECREASING: linear decrease from p_max to p_min (paper Section IV).
@@ -88,7 +88,7 @@ class ILSHADE(BaseAlg):
         """
         Return the current generation progress as g / G_max.
 
-        Used for early-stage F and CR constraints (Algorithm 3, lines 19-31).
+        Used for early-stage F and CR constraints.
 
         Returns:
         - float: Fraction of estimated maximum generations completed.
@@ -194,7 +194,7 @@ class ILSHADE(BaseAlg):
 
     def update_memory(self, success_f: List[float], success_cr: List[float], difference_fitness_success: List[float]):
         """
-        Update historical memory for F and Cr based on successful trial vectors (Algorithm 4).
+        Update historical memory for F and Cr based on successful trial vectors.
 
         iL-SHADE uses the average of the weighted Lehmer mean and the previous memory value.
         Terminal Cr values are reset to 0.0 instead of being kept as a special marker.
@@ -255,7 +255,7 @@ class ILSHADE(BaseAlg):
 
     def _apply_early_stage_constraints(self, f: float, cr: float) -> tuple[float, float]:
         """
-        Apply early-stage constraints to generated F and Cr values (Algorithm 3, lines 19-31).
+        Apply early-stage constraints to generated F and Cr values.
 
         Limits high F and low Cr during the first 75% of estimated generations.
 
@@ -281,7 +281,7 @@ class ILSHADE(BaseAlg):
 
     def initialize_parameters_for_epoch(self):
         """
-        Initialize F, Cr, and p-best parameters for the next epoch (Algorithm 3, lines 8-31).
+        Initialize F, Cr, and p-best parameters for the next epoch .
 
         For each individual, a random memory index is selected and used to generate
         new F and Cr values. Early-stage constraints are applied afterwards.
@@ -316,7 +316,7 @@ class ILSHADE(BaseAlg):
 
     def next_epoch(self):
         """
-        Perform the next epoch of the iL-SHADE algorithm (Algorithm 3).
+        Perform the next epoch of the iL-SHADE algorithm.
 
         Executes parameter initialization, mutation, crossover, selection, archive reduction,
         memory update, population size reduction, and dynamic p update.

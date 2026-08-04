@@ -34,7 +34,7 @@ class ILSHADE(BaseAlg):
     _FIXED_MEMORY_CR = 0.9
     _INITIAL_MEMORY_F = 0.5
     _INITIAL_MEMORY_CR = 0.8
-    _TERMINAL = -1.0  # Internal Cr memory marker; iL-SHADE resets it to 0.0 instead of keeping NaN
+    _TERMINAL = -1.0  
 
     def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
         super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)

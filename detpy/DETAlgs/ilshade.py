@@ -34,17 +34,16 @@ class ILSHADE(BaseAlg):
     _FIXED_MEMORY_CR = 0.9
     _INITIAL_MEMORY_F = 0.5
     _INITIAL_MEMORY_CR = 0.8
-    _TERMINAL = -1.0  # Terminal value for M_CR (Algorithm 4); reset to 0.0 in update_memory
+    _TERMINAL = -1.0  # Internal Cr memory marker; iL-SHADE resets it to 0.0 instead of keeping NaN
 
     def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
         super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)
 
-        self._H = params.memory_size  # Memory size for F and Cr adaptation
-        self._memory_F = np.full(self._H, self._INITIAL_MEMORY_F)  # Initial memory for F
-        self._memory_Cr = np.full(self._H, self._INITIAL_MEMORY_CR)  # Initial memory for Cr (0.8 in iL-SHADE)
-        self._fixed_memory_index = self._H - 1  # Last memory slot with fixed F/Cr values
-        self._memory_F[self._fixed_memory_index] = self._FIXED_MEMORY_F
-        self._memory_Cr[self._fixed_memory_index] = self._FIXED_MEMORY_CR
+        self._H = params.memory_size
+        self._adaptive_H = self._H - 1
+        self._fixed_memory_index = self._H - 1
+        self._memory_F = np.full(self._adaptive_H, self._INITIAL_MEMORY_F)
+        self._memory_Cr = np.full(self._adaptive_H, self._INITIAL_MEMORY_CR)
 
         self._p_max = params.p_max
         self._p_min = params.p_min
@@ -83,17 +82,6 @@ class ILSHADE(BaseAlg):
             self._p = self._p_max - ((self._p_max - self._p_min) / self.nfe_max) * self.nfe
         else:
             self._p = ((self._p_max - self._p_min) / self.nfe_max) * self.nfe + self._p_min
-
-    def _progress_fraction(self) -> float:
-        """
-        Return the current generation progress as g / G_max.
-
-        Used for early-stage F and CR constraints.
-
-        Returns:
-        - float: Fraction of estimated maximum generations completed.
-        """
-        return self._epoch_number / self._g_max
 
     def update_population_size(self, nfe: int, total_nfe: int, start_pop_size: int, min_pop_size: int):
         """
@@ -198,7 +186,6 @@ class ILSHADE(BaseAlg):
 
         iL-SHADE uses the average of the weighted Lehmer mean and the previous memory value.
         Terminal Cr values are reset to 0.0 instead of being kept as a special marker.
-        The fixed memory slot at index H is never updated.
 
         Parameters:
         - success_f (List[float]): Scaling factors that led to better trial vectors.
@@ -208,19 +195,12 @@ class ILSHADE(BaseAlg):
         if len(success_f) == 0 or len(success_cr) == 0:
             return
 
-        if self._k_index == self._fixed_memory_index:
-            self._successF = []
-            self._successCr = []
-            self._difference_fitness_success = []
-            self._k_index = (self._k_index + 1) % self._H
-            return
-
         total = np.sum(difference_fitness_success)
         weights = difference_fitness_success / total
         old_cr = self._memory_Cr[self._k_index]
         old_f = self._memory_F[self._k_index]
 
-        if old_cr < 0 or np.max(success_cr) == 0 or np.isclose(total, 0.0, atol=self._EPSILON):
+        if old_cr == self._TERMINAL or np.max(success_cr) == 0 or np.isclose(total, 0.0, atol=self._EPSILON):
             self._memory_Cr[self._k_index] = 0.0
         else:
             cr_new = MathFunctions.calculate_lehmer_mean(np.array(success_cr), weights, p=2)
@@ -234,24 +214,7 @@ class ILSHADE(BaseAlg):
         self._successF = []
         self._successCr = []
         self._difference_fitness_success = []
-        self._k_index = (self._k_index + 1) % self._H
-
-    def _get_memory_values(self, ri: int) -> tuple[float, float]:
-        """
-        Return the F and Cr memory values for a selected memory index.
-
-        When the fixed memory slot H is selected, returns constant values 0.9/0.9
-        regardless of stored memory contents (Algorithm 3, lines 10-13).
-
-        Parameters:
-        - ri (int): Selected memory index in range [0, H-1].
-
-        Returns:
-        - tuple[float, float]: Mean F and mean Cr for parameter generation.
-        """
-        if ri == self._fixed_memory_index:
-            return self._FIXED_MEMORY_F, self._FIXED_MEMORY_CR
-        return self._memory_F[ri], self._memory_Cr[ri]
+        self._k_index = (self._k_index + 1) % self._adaptive_H
 
     def _apply_early_stage_constraints(self, f: float, cr: float) -> tuple[float, float]:
         """
@@ -266,7 +229,7 @@ class ILSHADE(BaseAlg):
         Returns:
         - tuple[float, float]: Constrained F and Cr values.
         """
-        progress = self._progress_fraction()
+        progress = self._epoch_number / self._g_max
 
         if progress < 0.25:
             cr = max(cr, 0.5)
@@ -297,9 +260,12 @@ class ILSHADE(BaseAlg):
 
         for _ in range(self._pop.size):
             ri = np.random.randint(0, self._H)
-            mean_f, mean_cr = self._get_memory_values(ri)
+            if ri == self._fixed_memory_index:
+                mean_f, mean_cr = self._FIXED_MEMORY_F, self._FIXED_MEMORY_CR
+            else:
+                mean_f, mean_cr = self._memory_F[ri], self._memory_Cr[ri]
 
-            if mean_cr < 0:
+            if mean_cr == self._TERMINAL:
                 cr = 0.0
             else:
                 cr = self._random_value_gen.generate_normal(mean_cr, 0.1, 0.0, 1.0)

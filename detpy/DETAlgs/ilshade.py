@@ -30,38 +30,33 @@ class ILSHADE(BaseAlg):
         real-parameter optimization. In 2016 IEEE Congress on Evolutionary Computation (CEC) (pp. 1188–1195). IEEE.
     """
 
-    _FIXED_MEMORY_F = 0.9
-    _FIXED_MEMORY_CR = 0.9
-    _INITIAL_MEMORY_F = 0.5
-    _INITIAL_MEMORY_CR = 0.8
-    _TERMINAL = -1.0  
-
     def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
         super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)
 
         self._H = params.memory_size
-        # Last memory slot is fixed (MF=0.9, MCR=0.9); only H-1 slots are adaptive
-        self._memory_F = np.full(self._H - 1, self._INITIAL_MEMORY_F)
-        self._memory_Cr = np.full(self._H - 1, self._INITIAL_MEMORY_CR)
+        self._memory_F = np.full(self._H, 0.5)
+        self._memory_Cr = np.full(self._H, 0.8)
+        self._memory_F[-1] = 0.9  # fixed
+        self._memory_Cr[-1] = 0.9  # fixed
 
         self._p_max = params.p_max
         self._p_min = params.p_min
         self._p_update_strategy = params.p_update_strategy
-        self._p = self._p_max  # Current p-best fraction for current-to-pBest/1
+        self._p = self._p_max
         self._k_index = 0
 
         self._successCr = []
         self._successF = []
         self._difference_fitness_success = []
 
-        self._archive_size = self.population_size  # Size of the archive
-        self._archive = []  # Archive for storing replaced members
+        self._archive_size = self.population_size
+        self._archive = []
 
-        self._min_pop_size = params.minimum_population_size  # Minimal population size
+        self._min_pop_size = params.minimum_population_size
         self._start_population_size = self.population_size
         self._population_size_reduction_strategy = params.population_reduction_strategy
 
-        self._EPSILON = 0.00001  # Tolerance for checking close to zero in update_memory
+        self._EPSILON = 0.00001
 
         self._index_gen = IndexGenerator()
         self._random_value_gen = RandomValueGenerator()
@@ -258,10 +253,7 @@ class ILSHADE(BaseAlg):
 
         for _ in range(self._pop.size):
             ri = np.random.randint(0, self._H)
-            if ri == self._H - 1:  # last index — fixed memory values
-                mean_f, mean_cr = self._FIXED_MEMORY_F, self._FIXED_MEMORY_CR
-            else:
-                mean_f, mean_cr = self._memory_F[ri], self._memory_Cr[ri]
+            mean_f, mean_cr = self._memory_F[ri], self._memory_Cr[ri]
 
             if mean_cr < 0:
                 cr = 0.0

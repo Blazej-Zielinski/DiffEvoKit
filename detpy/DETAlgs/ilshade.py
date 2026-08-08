@@ -36,8 +36,8 @@ class ILSHADE(BaseAlg):
         self._H = params.memory_size
         self._memory_F = np.full(self._H, 0.5)
         self._memory_Cr = np.full(self._H, 0.8)
-        self._memory_F[-1] = 0.9  # fixed
-        self._memory_Cr[-1] = 0.9  # fixed
+        self._memory_F[-1] = 0.9
+        self._memory_Cr[-1] = 0.9
 
         self._p_max = params.p_max
         self._p_min = params.p_min
@@ -68,8 +68,8 @@ class ILSHADE(BaseAlg):
         Update the p-best fraction for current-to-pBest/1 mutation.
 
         The update strategy is controlled by ``ILShadeData.p_update_strategy``:
-        - DECREASING: linear decrease from p_max to p_min (paper Section IV).
-        - INCREASING: linear increase from p_min to p_max (paper Equation 1).
+        - DECREASING: linear decrease from p_max to p_min.
+        - INCREASING: linear increase from p_min to p_max.
         """
         if self._p_update_strategy == ILShadePUpdateStrategy.DECREASING:
             self._p = self._p_max - ((self._p_max - self._p_min) / self.nfe_max) * self.nfe

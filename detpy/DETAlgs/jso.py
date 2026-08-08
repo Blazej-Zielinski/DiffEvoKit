@@ -29,25 +29,18 @@ class JSO(BaseAlg):
         In 2017 IEEE Congress on Evolutionary Computation (CEC) (pp. 1311–1318). IEEE.
     """
 
-    _FIXED_MEMORY_F = 0.9
-    _FIXED_MEMORY_CR = 0.9
-    _INITIAL_MEMORY_F = 0.5
-    _INITIAL_MEMORY_CR = 0.8
-    _TERMINAL = -1.0
-
     def __init__(self, params: JSOData, db_conn=None, db_auto_write=False):
         super().__init__(JSO.__name__, params, db_conn, db_auto_write)
 
         self._H = params.memory_size
-        self._adaptive_H = self._H - 1
-        self._fixed_memory_index = self._H - 1
-        self._memory_F = np.full(self._adaptive_H, self._INITIAL_MEMORY_F)
-        self._memory_Cr = np.full(self._adaptive_H, self._INITIAL_MEMORY_CR)
+        self._memory_F = np.full(self._H, 0.5)
+        self._memory_Cr = np.full(self._H, 0.8)
+        self._memory_F[-1] = 0.9
+        self._memory_Cr[-1] = 0.9
 
         self._p_max = params.p_max
         self._p_min = params.p_min
         self._p_update_strategy = params.p_update_strategy
-
         self._p = self._p_min
         self._k_index = 0
 
@@ -60,7 +53,6 @@ class JSO(BaseAlg):
 
         self._min_pop_size = params.minimum_population_size
         self._start_population_size = self.population_size
-        self._g_max = max(1, int(np.ceil(self.nfe_max / self._start_population_size)))
         self._population_size_reduction_strategy = params.population_reduction_strategy
 
         self._EPSILON = 0.00001
@@ -69,11 +61,6 @@ class JSO(BaseAlg):
         self._random_value_gen = RandomValueGenerator()
         self._binomial_crossing = BinomialCrossover()
         self._archive_reduction = ArchiveReduction()
-
-    @staticmethod
-    def recommended_population_size(dimension: int) -> int:
-        """Recommended initial population size: 25 * log(D) * sqrt(D)."""
-        return int(round(25 * np.log(dimension) * np.sqrt(dimension)))
 
     def _compute_fw(self, f: float) -> float:
         """
@@ -195,7 +182,7 @@ class JSO(BaseAlg):
         old_cr = self._memory_Cr[self._k_index]
         old_f = self._memory_F[self._k_index]
 
-        if old_cr == self._TERMINAL or np.max(success_cr) == 0 or np.isclose(total, 0.0, atol=self._EPSILON):
+        if old_cr < 0 or np.max(success_cr) == 0 or np.isclose(total, 0.0, atol=self._EPSILON):
             self._memory_Cr[self._k_index] = 0.0
         else:
             cr_new = MathFunctions.calculate_lehmer_mean(np.array(success_cr), weights, p=2)
@@ -209,17 +196,13 @@ class JSO(BaseAlg):
         self._successF = []
         self._successCr = []
         self._difference_fitness_success = []
-        self._k_index = (self._k_index + 1) % self._adaptive_H
+        self._k_index = (self._k_index + 1) % (self._H - 1)
 
     def _apply_early_stage_constraints(self, f: float, cr: float) -> tuple[float, float]:
         """
-        Apply jSO early-stage constraints.
-
-        - g < 0.25 GMAX: CR = max(CR, 0.7)
-        - g < 0.5 GMAX:  CR = max(CR, 0.6)
-        - g < 0.6 GMAX and F > 0.7: F = 0.7
+        Apply jSO early-stage constraints based on nfe progress.
         """
-        progress = self._epoch_number / self._g_max
+        progress = self.nfe / self.nfe_max
 
         if progress < 0.25:
             cr = max(cr, 0.7)
@@ -248,12 +231,9 @@ class JSO(BaseAlg):
 
         for _ in range(self._pop.size):
             ri = np.random.randint(0, self._H)
-            if ri == self._fixed_memory_index:
-                mean_f, mean_cr = self._FIXED_MEMORY_F, self._FIXED_MEMORY_CR
-            else:
-                mean_f, mean_cr = self._memory_F[ri], self._memory_Cr[ri]
+            mean_f, mean_cr = self._memory_F[ri], self._memory_Cr[ri]
 
-            if mean_cr == self._TERMINAL:
+            if mean_cr < 0:
                 cr = 0.0
             else:
                 cr = self._random_value_gen.generate_normal(mean_cr, 0.1, 0.0, 1.0)

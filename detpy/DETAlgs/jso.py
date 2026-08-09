@@ -6,9 +6,9 @@ import numpy as np
 from detpy.DETAlgs.archive_reduction.archive_reduction import ArchiveReduction
 from detpy.DETAlgs.base import BaseAlg
 from detpy.DETAlgs.crossover_methods.binomial_crossover import BinomialCrossover
-from detpy.DETAlgs.data.alg_data import ILShadeData
+from detpy.DETAlgs.data.alg_data import JSOData
 from detpy.DETAlgs.math.math_functions import MathFunctions
-from detpy.DETAlgs.mutation_methods.current_to_pbest_1 import MutationCurrentToPBest1
+from detpy.DETAlgs.mutation_methods.current_to_pbest_r import MutationCurrentToPBestR
 from detpy.DETAlgs.random.index_generator import IndexGenerator
 from detpy.DETAlgs.random.random_value_generator import RandomValueGenerator
 from detpy.models.enums.boundary_constrain import fix_boundary_constraints_with_parent
@@ -18,20 +18,19 @@ from detpy.models.enums.optimization import OptimizationType
 from detpy.models.population import Population
 
 
-class ILSHADE(BaseAlg):
+class JSO(BaseAlg):
     """
-        iL-SHADE: Improved L-SHADE Algorithm for Single Objective Real-Parameter Optimization
+        jSO: Single Objective Real-Parameter Optimization
 
-        Links:
-        https://ieeexplore.ieee.org/document/7743922
+        An improved variant of iL-SHADE with a weighted current-to-pBest-w/1 mutation strategy.
 
         References:
-        Brest, J., Sepesy Maučec, M., & Boškovič, B. (2016). iL-SHADE: Improved L-SHADE algorithm for single objective
-        real-parameter optimization. In 2016 IEEE Congress on Evolutionary Computation (CEC) (pp. 1188–1195). IEEE.
+        Brest, J., Sepesy Maučec, M., & Boškovič, B. (2017). Single objective real-parameter optimization: Algorithm jSO.
+        In 2017 IEEE Congress on Evolutionary Computation (CEC) (pp. 1311–1318). IEEE.
     """
 
-    def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
-        super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: JSOData, db_conn=None, db_auto_write=False):
+        super().__init__(JSO.__name__, params, db_conn, db_auto_write)
 
         self._H = params.memory_size
         self._memory_F = np.full(self._H, 0.5)
@@ -42,7 +41,7 @@ class ILSHADE(BaseAlg):
         self._p_max = params.p_max
         self._p_min = params.p_min
         self._p_update_strategy = params.p_update_strategy
-        self._p = self._p_max
+        self._p = self._p_min
         self._k_index = 0
 
         self._successCr = []
@@ -63,13 +62,27 @@ class ILSHADE(BaseAlg):
         self._binomial_crossing = BinomialCrossover()
         self._archive_reduction = ArchiveReduction()
 
+    def _compute_fw(self, f: float) -> float:
+        """
+        Compute the weighted scaling factor Fw for current-to-pBest-w/1.
+
+        Fw = 0.7 * F  if nfes < 0.2 * max_nfes
+        Fw = 0.8 * F  if nfes < 0.4 * max_nfes
+        Fw = 1.2 * F  otherwise
+        """
+        progress = self.nfe / self.nfe_max
+        if progress < 0.2:
+            return 0.7 * f
+        if progress < 0.4:
+            return 0.8 * f
+        return 1.2 * f
+
     def _update_p(self):
         """
-        Update the p-best fraction for current-to-pBest/1 mutation.
+        Update p for current-to-pBest-w/1.
 
-        The update strategy is controlled by ``ILShadeData.p_update_strategy``:
-        - DECREASING: linear decrease from p_max to p_min.
-        - INCREASING: linear increase from p_min to p_max.
+        Default (increasing):
+            p = ((p_max - p_min) / max_nfes) * nfes + p_min
         """
         if self._p_update_strategy == ILShadePUpdateStrategy.DECREASING:
             self._p = self._p_max - ((self._p_max - self._p_min) / self.nfe_max) * self.nfe
@@ -79,12 +92,6 @@ class ILSHADE(BaseAlg):
     def update_population_size(self, nfe: int, total_nfe: int, start_pop_size: int, min_pop_size: int):
         """
         Calculate new population size using Linear Population Size Reduction (LPSR).
-
-        Parameters:
-        - nfe (int): The current number of function evaluations.
-        - total_nfe (int): The total number of function evaluations.
-        - start_pop_size (int): The initial population size.
-        - min_pop_size (int): The minimum population size.
         """
         new_size = self._population_size_reduction_strategy.get_new_population_size(
             nfe, total_nfe, start_pop_size, min_pop_size
@@ -94,18 +101,13 @@ class ILSHADE(BaseAlg):
     def mutate(self,
                population: Population,
                the_best_to_select_table: List[int],
-               f_table: List[float]
+               f_table: List[float],
+               fw_table: List[float]
                ) -> Population:
         """
-        Perform mutation step for the population using current-to-pBest/1.
+        Perform mutation using current-to-pBest-w/1.
 
-        Parameters:
-        - population (Population): The population to mutate.
-        - the_best_to_select_table (List[int]): Number of top members to consider as p-best for each individual.
-        - f_table (List[float]): List of scaling factors for mutation.
-
-        Returns:
-        - Population: A new population with mutated members.
+        v = x + Fw * (x_pBest - x) + F * (x_r1 - x_r2)
         """
         new_members = []
         sum_archive_and_population = np.concatenate((population.members, self._archive))
@@ -118,12 +120,13 @@ class ILSHADE(BaseAlg):
             random_index = self._index_gen.generate(0, len(best_members))
             selected_best_member = best_members[random_index]
 
-            mutated_member = MutationCurrentToPBest1.mutate(
+            mutated_member = MutationCurrentToPBestR.mutate(
                 base_member=population.members[i],
                 best_member=selected_best_member,
                 r1=population.members[r1],
                 r2=sum_archive_and_population[r2],
-                f=f_table[i]
+                f=f_table[i],
+                fw=fw_table[i],
             )
 
             new_members.append(mutated_member)
@@ -132,58 +135,44 @@ class ILSHADE(BaseAlg):
 
     def _selection(self, origin_population, modified_population, ftable, cr_table):
         """
-        Perform the selection step for the iL-SHADE algorithm.
+        Selection:
 
-        Selects members for the next generation based on fitness values.
-        If the trial vector is better than the target vector, it replaces the target
-        and the replaced vector is stored in the archive together with successful F and Cr values.
-
-        Parameters:
-        - origin_population (Population): The original population before selection.
-        - modified_population (Population): The trial population after mutation and crossover.
-        - ftable (List[float]): Scaling factors used during mutation.
-        - cr_table (List[float]): Crossover rates used during crossover.
-
-        Returns:
-        - Population: A new population containing the selected members for the next generation.
+        - replace parent when trial is not worse (f(u) <= f(x) for minimization)
+        - store in archive / SF / SCR only on strict improvement (f(u) < f(x))
         """
         optimization = origin_population.optimization
         new_members = []
 
         if optimization == OptimizationType.MINIMIZATION:
-            is_better = lambda orig, mod: mod.fitness_value < orig.fitness_value
+            accepts = lambda orig, mod: mod.fitness_value <= orig.fitness_value
+            is_strict_improvement = lambda orig, mod: mod.fitness_value < orig.fitness_value
             diff = lambda orig, mod: orig.fitness_value - mod.fitness_value
         else:
-            is_better = lambda orig, mod: mod.fitness_value > orig.fitness_value
+            accepts = lambda orig, mod: mod.fitness_value >= orig.fitness_value
+            is_strict_improvement = lambda orig, mod: mod.fitness_value > orig.fitness_value
             diff = lambda orig, mod: mod.fitness_value - orig.fitness_value
 
         for i in range(origin_population.size):
             orig = origin_population.members[i]
             mod = modified_population.members[i]
 
-            if not is_better(orig, mod):
+            if not accepts(orig, mod):
                 new_members.append(copy.deepcopy(orig))
                 continue
 
-            self._archive.append(copy.deepcopy(orig))
-            self._successF.append(ftable[i])
-            self._successCr.append(cr_table[i])
-            self._difference_fitness_success.append(diff(orig, mod))
+            if is_strict_improvement(orig, mod):
+                self._archive.append(copy.deepcopy(orig))
+                self._successF.append(ftable[i])
+                self._successCr.append(cr_table[i])
+                self._difference_fitness_success.append(diff(orig, mod))
+
             new_members.append(copy.deepcopy(mod))
 
         return Population.with_new_members(origin_population, new_members)
 
     def update_memory(self, success_f: List[float], success_cr: List[float], difference_fitness_success: List[float]):
         """
-        Update historical memory for F and Cr based on successful trial vectors.
-
-        iL-SHADE uses the average of the weighted Lehmer mean and the previous memory value.
-        Terminal Cr values are reset to 0.0 instead of being kept as a special marker.
-
-        Parameters:
-        - success_f (List[float]): Scaling factors that led to better trial vectors.
-        - success_cr (List[float]): Crossover rates that led to better trial vectors.
-        - difference_fitness_success (List[float]): Absolute fitness improvements of successful trials.
+        Update historical memory for F and Cr using the average of weighted Lehmer mean and previous value.
         """
         if len(success_f) == 0 or len(success_cr) == 0:
             return
@@ -211,44 +200,33 @@ class ILSHADE(BaseAlg):
 
     def _apply_early_stage_constraints(self, f: float, cr: float) -> tuple[float, float]:
         """
-        Apply early-stage constraints to generated F and Cr values.
-
-        Limits high F and low Cr during the early stage of the search (based on nfe).
-
-        Parameters:
-        - f (float): Generated scaling factor.
-        - cr (float): Generated crossover rate.
-
-        Returns:
-        - tuple[float, float]: Constrained F and Cr values.
+        Apply jSO early-stage constraints based on nfe progress.
         """
         progress = self.nfe / self.nfe_max
 
         if progress < 0.25:
-            cr = max(cr, 0.5)
-            f = min(f, 0.7)
+            cr = max(cr, 0.7)
         elif progress < 0.5:
-            cr = max(cr, 0.25)
-            f = min(f, 0.8)
-        elif progress < 0.75:
-            f = min(f, 0.9)
+            cr = max(cr, 0.6)
+
+        if progress < 0.6 and f > 0.7:
+            f = 0.7
 
         return f, cr
 
     def initialize_parameters_for_epoch(self):
         """
-        Initialize F, Cr, and p-best parameters for the next epoch .
-
-        For each individual, a random memory index is selected and used to generate
-        new F and Cr values. Early-stage constraints are applied afterwards.
+        Initialize F, Cr, Fw, and p-best parameters for the next epoch.
 
         Returns:
-        - f_table (List[float]): Scaling factors for mutation.
-        - cr_table (List[float]): Crossover rates.
-        - the_bests_to_select (List[int]): Number of p-best members to select for each individual.
+        - f_table: Scaling factors for mutation.
+        - cr_table: Crossover rates.
+        - fw_table: Weighted scaling factors for the pBest term.
+        - the_bests_to_select: Number of p-best members to select for each individual.
         """
         f_table = []
         cr_table = []
+        fw_table = []
         the_bests_to_select = []
 
         for _ in range(self._pop.size):
@@ -265,25 +243,22 @@ class ILSHADE(BaseAlg):
 
             f_table.append(f)
             cr_table.append(cr)
+            fw_table.append(self._compute_fw(f))
+            the_bests_to_select.append(max(2, int(self.population_size * self._p)))
 
-            the_bests_to_select.append(int(self.population_size * self._p))
-
-        return f_table, cr_table, the_bests_to_select
+        return f_table, cr_table, fw_table, the_bests_to_select
 
     def next_epoch(self):
         """
-        Perform the next epoch of the iL-SHADE algorithm.
-
-        Executes parameter initialization, mutation, crossover, selection, archive reduction,
-        memory update, population size reduction, and dynamic p update.
+        Perform the next epoch of the jSO algorithm.
         """
         self._successF = []
         self._successCr = []
         self._difference_fitness_success = []
 
-        f_table, cr_table, the_bests_to_select = self.initialize_parameters_for_epoch()
+        f_table, cr_table, fw_table, the_bests_to_select = self.initialize_parameters_for_epoch()
 
-        mutant = self.mutate(self._pop, the_bests_to_select, f_table)
+        mutant = self.mutate(self._pop, the_bests_to_select, f_table, fw_table)
         trial = self._binomial_crossing.crossover_population(self._pop, mutant, cr_table)
 
         fix_boundary_constraints_with_parent(self._pop, trial, self.boundary_constraints_fun)

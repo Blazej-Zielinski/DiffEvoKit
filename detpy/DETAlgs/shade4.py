@@ -44,8 +44,8 @@ class SHADE4(BaseAlg):
         3: 're'
     }
 
-    def __init__(self, params: SHADE4Data, db_conn=None, db_auto_write=False):
-        super().__init__(SHADE4.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: SHADE4Data, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(SHADE4.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         MIN_POP_SIZE_FOR_PBEST = 10
         if self.population_size < MIN_POP_SIZE_FOR_PBEST:

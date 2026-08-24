@@ -30,8 +30,8 @@ class LSHADE(BaseAlg):
         Evolutionary Computation (CEC). IEEE. https://doi.org/10.1109/cec.2014.6900380
     """
 
-    def __init__(self, params: LShadeData, db_conn=None, db_auto_write=False):
-        super().__init__(LSHADE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: LShadeData, db_conn=None, db_auto_write=True,db_writing_interval=5000,verbose=False):
+        super().__init__(LSHADE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self._H = params.memory_size  # Memory size for f and cr adaptation
         self._memory_F = np.full(self._H, 0.5)  # Initial memory for F

@@ -49,8 +49,8 @@ class LSHADE44(BaseAlg):
     CROSSOVER_BINOMIAL = 0
     CROSSOVER_EXPONENTIAL = 1
 
-    def __init__(self, params: LSHADE44Data, db_conn=None, db_auto_write=False):
-        super().__init__(LSHADE44.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: LSHADE44Data, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(LSHADE44.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         MIN_POP_SIZE_FOR_PBEST = 10
         if self.population_size < MIN_POP_SIZE_FOR_PBEST:

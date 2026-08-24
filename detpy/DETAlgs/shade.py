@@ -31,8 +31,8 @@ class SHADE(BaseAlg):
         (CEC). IEEE. https://doi.org/10.1109/cec.2013.6557555
     """
 
-    def __init__(self, params: ShadeData, db_conn=None, db_auto_write=False):
-        super().__init__(SHADE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: ShadeData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(SHADE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self._H = params.memory_size  # Memory size for f and cr adaptation
         self._memory_F = np.full(self._H, 0.5)  # Initial memory for F

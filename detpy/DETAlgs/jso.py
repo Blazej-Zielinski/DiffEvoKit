@@ -29,8 +29,8 @@ class JSO(BaseAlg):
         In 2017 IEEE Congress on Evolutionary Computation (CEC) (pp. 1311–1318). IEEE.
     """
 
-    def __init__(self, params: JSOData, db_conn=None, db_auto_write=False):
-        super().__init__(JSO.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: JSOData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(JSO.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self._H = params.memory_size
         self._memory_F = np.full(self._H, 0.5)

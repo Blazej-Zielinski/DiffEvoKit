@@ -42,12 +42,11 @@ class SQLiteConnector(BaseSQLiteConnector):
         super().__init__(database)
 
     def create_table(self, table_name):
-        new_table_name = self.find_valid_table_name(table_name)
-
         create_table_query = f'''
-            CREATE TABLE {new_table_name} (
+            CREATE TABLE {table_name} (
                 id INTEGER PRIMARY KEY,
                 epoch INTEGER,
+                nfe INTEGER,                    
                 argumentsBest TEXT,
                 fitnessValueBest REAL,
                 argumentsWorst TEXT,
@@ -62,28 +61,12 @@ class SQLiteConnector(BaseSQLiteConnector):
         self.execute_query(create_table_query)
         self.commit()
 
-        return new_table_name
-
-    def find_valid_table_name(self, table_name):
-        query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
-        self.execute_query(query, (table_name + '%',))
-        results = self.fetch_all()
-        tables = [row[0] for row in results]
-
-        return f"{table_name}_{len(tables) + 1}"
-
-    def find_existing_table_name(self, table_name):
-        query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
-        self.execute_query(query, (table_name + '%',))
-        results = self.fetch_all()
-        tables = [row[0] for row in results]
-
-        return f"{table_name}_{len(tables)}"
+        return table_name
 
     def insert_multiple_best_individuals(self, table_name, params):
         insert_query = f'''
-        INSERT INTO {table_name} (epoch, argumentsBest, fitnessValueBest, argumentsWorst, fitnessValueWorst, mean, std, calculationTime, population)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {table_name} (epoch, nfe, argumentsBest, fitnessValueBest, argumentsWorst, fitnessValueWorst, mean, std, calculationTime, population)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         '''
 
         self.executemany_query(insert_query, params)
@@ -91,7 +74,7 @@ class SQLiteConnector(BaseSQLiteConnector):
 
     def get_results(self, table_name):
         query = f'''
-        SELECT * FROM {table_name}
+            SELECT * FROM {table_name}
         '''
 
         self.execute_query(query)

@@ -17,8 +17,8 @@ class DELB(BaseAlg):
     European Journal of Operational Research. 169. 1176-1184. 10.1016/j.ejor.2004.08.047.
     """
 
-    def __init__(self, params: DELBData, db_conn=None, db_auto_write=False):
-        super().__init__(DELB.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: DELBData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(DELB.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self.crossover_rate = params.crossover_rate  # Cr
         self.w_factor = params.w_factor  # w

@@ -33,8 +33,8 @@ class SPS_LSHADE_EIG(BaseAlg):
      Evolutionary Computation (CEC). IEEE. https://doi.org/10.1109/cec.2015.7256999
      """
 
-    def __init__(self, params: SPSLShadeEIGDATA, db_conn=None, db_auto_write=False):
-        super().__init__(SPS_LSHADE_EIG.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: SPSLShadeEIGDATA, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(SPS_LSHADE_EIG.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self._h = params.memory_size
         self._memory_F = np.full(self._h, params.f_init)

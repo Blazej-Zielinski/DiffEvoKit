@@ -29,8 +29,8 @@ class EPSDEAG(BaseAlg):
           18-23 July 2010, Barcelona, Spain doi: 10.1109/CEC.2010.5586484.
     """
 
-    def __init__(self, params: EPSDEAGData, db_conn=None, db_auto_write=False):
-        super().__init__(EPSDEAG.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EPSDEAGData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EPSDEAG.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.number_of_repeating_de_operations = params.number_of_repeating_de_operations
         self.gradient_mutation_interval = params.gradient_mutation_interval
         self.derivative_method = params.derivative_method

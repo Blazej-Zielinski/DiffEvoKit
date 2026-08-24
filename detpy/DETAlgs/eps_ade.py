@@ -29,8 +29,8 @@ class EPSADE(BaseAlg):
           18-23 July 2010, Barcelona, Spain doi: 10.1109/CEC.2010.5586545.
     """
 
-    def __init__(self, params: EPSADEData, db_conn=None, db_auto_write=False):
-        super().__init__(EPSADE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EPSADEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EPSADE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.init_mutation_factor = params.init_mutation_factor  # F
         self.init_crossover_rate = params.init_crossover_rate  # Cr
         self.mu_mutation_factory = self.init_mutation_factor

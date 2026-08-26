@@ -18,8 +18,8 @@ class EIDE(BaseAlg):
         Proceedings of the 31st Chinese Control Conference, Hefei, China, 2012, pp. 2385-2390.
     """
 
-    def __init__(self, params: EIDEData, db_conn=None, db_auto_write=False):
-        super().__init__(EIDE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EIDEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EIDE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self.mutation_factor = random.uniform(0, 0.6)
         self.crossover_rate = params.crossover_rate_min

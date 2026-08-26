@@ -18,8 +18,8 @@ class IDE(BaseAlg):
         Journal of Computer and Communications, 7, 107-120. doi: 10.4236/jcc.2019.711008.
     """
 
-    def __init__(self, params: IDEData, db_conn=None, db_auto_write=False):
-        super().__init__(IDE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: IDEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(IDE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.base_vector_schema = params.base_vector_schema
         self.y = params.y
 

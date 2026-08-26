@@ -17,8 +17,8 @@ class MGDE(BaseAlg):
         relation and bi-goal evolution. Ann Oper Res (2022). https://doi.org/10.1007/s10479-022-04641-3
     """
 
-    def __init__(self, params: MGDEData, db_conn=None, db_auto_write=False):
-        super().__init__(MGDE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: MGDEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(MGDE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self.mutation_factor_f = params.mutation_factor_f
         self.mutation_factor_k = params.mutation_factor_k

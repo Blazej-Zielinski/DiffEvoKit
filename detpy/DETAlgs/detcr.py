@@ -29,8 +29,8 @@ class DETCR(BaseAlg):
           New Orleans, LA, USA, 2011, doi: 10.1109/CEC.2011.5949800.
     """
 
-    def __init__(self, params: DETCRData, db_conn=None, db_auto_write=False):
-        super().__init__(DETCR.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: DETCRData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(DETCR.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self.rate_ls = 1 - (1 / (100 * self.nr_of_args))
 

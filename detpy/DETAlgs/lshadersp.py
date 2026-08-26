@@ -31,8 +31,8 @@ class LSHADERSP(BaseAlg):
         Volume 1, pages 149-155
     """
 
-    def __init__(self, params: LSHADERSPData, db_conn=None, db_auto_write=False):
-        super().__init__(LSHADERSP.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: LSHADERSPData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(LSHADERSP.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self._k = params.scaling_factor_for_rank_selection  # Scaling factor for rank selection
         self._H = params.memory_size  # Memory size for f and cr adaptation
         self._memory_F = np.full(self._H, 0.3)  # Initial memory for F

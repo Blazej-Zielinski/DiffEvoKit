@@ -24,8 +24,8 @@ class EPSDEG(BaseAlg):
            E. Mezura-Montes, Ed. Springer-Verlag, 2009, pp. 51–72.
     """
 
-    def __init__(self, params: EPSDEGData, db_conn=None, db_auto_write=False):
-        super().__init__(EPSDEG.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EPSDEGData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EPSDEG.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.derivative_method = params.derivative_method
         self.mutation_factor = params.mutation_factor  # F
         self.crossover_rate = params.crossover_rate  # Cr

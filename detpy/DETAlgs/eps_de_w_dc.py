@@ -22,8 +22,8 @@ class EPSDEwDC(BaseAlg):
           vol 143. Springer, Berlin, Heidelberg. https://doi.org/10.1007/978-3-540-68830-3_5
     """
 
-    def __init__(self, params: EPSDEwDCData, db_conn=None, db_auto_write=False):
-        super().__init__(EPSDEwDC.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EPSDEwDCData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EPSDEwDC.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.mutation_factor = params.mutation_factor  # F
         self.crossover_rate = params.crossover_rate  # Cr
         self.g_funcs = params.g_funcs  # Inequality constraints functions

@@ -23,8 +23,8 @@ class EPSRDE(BaseAlg):
           10-15 June 2012, Brisbane, QLD, Australia doi: 10.1109/CEC.2012.6256111.
     """
 
-    def __init__(self, params: EPSRDEData, db_conn=None, db_auto_write=False):
-        super().__init__(EPSRDE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: EPSRDEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(EPSRDE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.crossing_type = params.crossing_type
         self.min_mutation_factor = params.min_mutation_factor  # min F
         self.max_mutation_factor = params.max_mutation_factor  # max F

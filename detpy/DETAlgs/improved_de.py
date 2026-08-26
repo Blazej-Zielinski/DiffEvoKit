@@ -20,8 +20,8 @@ class ImprovedDE(BaseAlg):
 
     """
 
-    def __init__(self, params: ImprovedDEData, db_conn=None, db_auto_write=False):
-        super().__init__(ImprovedDE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: ImprovedDEData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(ImprovedDE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
         self.initial_mutation_factor = params.mutation_factor  # Initial F value
         self.crossover_rate = params.crossover_rate  # Cr
         self.iteration = 0

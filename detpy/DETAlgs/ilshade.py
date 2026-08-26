@@ -30,8 +30,8 @@ class ILSHADE(BaseAlg):
         real-parameter optimization. In 2016 IEEE Congress on Evolutionary Computation (CEC) (pp. 1188–1195). IEEE.
     """
 
-    def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False):
-        super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write)
+    def __init__(self, params: ILShadeData, db_conn=None, db_auto_write=False, db_writing_interval=5000, verbose=False):
+        super().__init__(ILSHADE.__name__, params, db_conn, db_auto_write, db_writing_interval, verbose)
 
         self._H = params.memory_size
         self._memory_F = np.full(self._H, 0.5)
